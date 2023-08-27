@@ -1,0 +1,473 @@
+Lab Steps
+Task 1: Sign in to AWS Management Console
+Click on the Open Console button, and you will get redirected to AWS Console in a new browser tab.
+
+On the AWS sign-in page,
+
+Leave the Account ID as default. Never edit/remove the 12 digit Account ID present in the AWS Console. otherwise, you cannot proceed with the lab.
+
+Now copy your User Name and Password in the Lab Console to the IAM Username and Password in AWS Console and click on the Sign in button.
+
+Once Signed In to the AWS Management Console, Make the default AWS Region as US East (N. Virginia) us-east-1.
+
+Task 2: Launching an instance
+Make sure you are in the N.Virginia Region.
+
+Navigate to EC2 by clicking on the Services menu in the top, then click on EC2 in the Compute section.
+
+Click on Instances from the left side bar and then click on Launch Instance 
+
+Name : Enter WordPressInstance
+
+    
+
+For Amazon Machine Image (AMI): Search for Amazon Linux 2 AMI in the search box and click on the select button.
+
+
+
+         Note: if there are two AMI's present for Amazon Linux 2 AMI, choose any of them.
+
+For Instance Type: select t2.micro
+
+       
+
+For Key pair: Select Create a new key pair Button
+
+Key pair name: WhizKey
+Key pair type: RSA
+Private key file format: .pem
+Select Create key pair Button.
+
+ In Network Settings Click on Edit:
+
+Auto-assign public IP: Enable
+
+Select Create new Security group
+
+Security group name : Enter MyEC2Server_SG
+
+Description : Enter Security Group to allow traffic to EC2
+
+   
+
+To add SSH:
+Choose Type: SSH
+Source: Custom (Allow specific IP address) or Anywhere (From ALL IP addresses accessible).
+For HTTP:
+
+Click on Add Security group rule
+
+Choose Type: HTTP 
+
+Source: Custom (Allow specific IP address) or Anywhere (From ALL IP addresses accessible).
+
+For HTTPS:
+
+Click on Add Security group rule
+
+Choose Type: HTTPS 
+
+Source:  Custom (Allow specific IP address) or Anywhere (From ALL IP addresses accessible).
+
+Keep Rest thing Default and Click on Launch Instance Button.
+
+Select View all Instances to View Instance you Created
+
+Launch Status: Your instance is now launching. Click on the instance ID and wait for complete initialization of the instance (until the status changes to running).
+
+
+
+Note the sample IPv4 Public IP Address of the EC2 instance. A sample is shown in the below screenshot:
+
+
+
+Task 3: SSH into the EC2 Instance
+To SSH into the instance, please follow the steps in SSH into EC2 Instance.
+
+Task 4: Run a test page in your browser
+To ensure that all programs are up to date, run below command:
+
+sudo yum update -y
+Next step is to get the latest versions of MariaDB (a community-developed fork of MySQL) and PHP. Run the following commands to install them both:
+
+sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+Now lets install Apache server and MariaDB.
+
+sudo yum install -y httpd mariadb-server
+Start the Apache Server
+
+sudo systemctl start httpd
+We can also make the apache server start automatically every time we boot the instance with following command:
+
+sudo systemctl enable httpd
+Test whether Apache Server enabled or not with below command:
+
+sudo systemctl is-enabled httpd
+Now it's time to test whether the sample test page of the apache server is running or not.
+
+Copy your Public IPv4 address and enter in your browser and hit enter. If you see the below test page, it means apache server is successfully installed.
+
+
+
+If the test page is not opening, then you have made some mistake while installing and starting the apache server. Please check the above steps properly and do it again.
+
+Task 5: Setting up permissions and LAMP server
+The next steps are to set file permissions. 
+
+Add user (ec2-user) to apache group
+
+sudo usermod -a -G apache ec2-user
+Log out and log back in to verify the membership of the new group
+
+Execute the logout command or close the window:
+
+exit
+SSH into the instance again
+
+To verify membership enter the below command:
+
+groups
+Now to change the group ownership of /var/www and the content inside of it to the apache group:
+
+sudo chown -R ec2-user:apache /var/www
+In order to add group write permissions, to set the group ID on future subdirectories and also change the directory permissions of /var/www and its subdirectories:
+
+sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
+To add group write permissions, recursively change the file permissions of /var/www and its subdirectories:
+
+find /var/www -type f -exec sudo chmod 0664 {} \;
+Now, the EC2 user (and any future members of the apache group) can add, delete, and edit files in the root of the Apache document. This allows you to add content like a static website or a PHP application.
+
+Let's test the LAMP server now.
+
+We will create a PHP file at the root of the Apache document. This will become our home page to test if everything is working as expected.
+
+echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
+To test the example PHP page, open a tab in the browser and enter "/phpinfo.php" after the Public IPv4 address as shown in the below image.
+
+
+
+Now that we have tested the example site, we can delete the phpinfo.php file.
+
+Let's delete the phpinfo.php file. We just used it to test, for security reasons, these details should not be available on the internet.
+
+rm /var/www/html/phpinfo.php
+Task 6: Database Server Security Details
+To start the MariaDB server:
+
+sudo systemctl start mariadb
+To install MySQL, run the mysql_secure_installation.
+
+sudo mysql_secure_installation
+When prompted for a password, type a password for the root account. (by default, the root account does not have a password). Press Enter when finished.
+
+Type Y to set the password, and retype the password to confirm it.
+
+Note: Make a note of the new password which you set as it will be used in future.
+
+Type Y  to remove the anonymous user accounts.
+
+Type Y  to disable the remote root login.
+
+Type Y  to remove the test database.
+
+Type Y to reload the privilege tables and save your changes.
+
+Optional: We can also make the MariaDB server start on every boot, . If you would like to enable this, type the following command:
+
+sudo systemctl enable mariadb
+Task 7: Optional installation for handling the administration of MySQL over the Web with phpMyAdmin
+Let's install the required dependencies:
+
+sudo yum install php-mbstring php-xml -y
+Restart the Apache Server:
+
+sudo systemctl restart httpd
+We also need to restart php-fpm.
+
+sudo systemctl restart php-fpm
+Navigate to the root of the Apache document at /var/www/html.
+
+cd /var/www/html
+We have to select a source package for the latest phpMyAdmin release from https://www.phpmyadmin.net/downloads. To download the file directly to your instance, copy the link and paste it into a wget command as shown below:
+
+wget https://www.phpmyadmin.net/downloads/phpMyAdmin-latest-all-languages.tar.gz
+Create a phpMyAdmin folder and extract the package into it with the following command:
+
+mkdir phpMyAdmin && tar -xvzf phpMyAdmin-latest-all-languages.tar.gz -C phpMyAdmin --strip-components 1
+Delete the phpMyAdmin-latest-all-languages.tar.gz tarball.
+
+rm phpMyAdmin-latest-all-languages.tar.gz
+Run the following command to make sure MySQL is running:
+
+sudo systemctl start mariadb
+In a web browser, type the below URL to see the php admin page:
+
+http://yourIPAddress/phpMyAdmin
+
+Log into your phpMyAdmin installation with your root user name and the MySQL root password we created earlier.
+
+
+
+Note(Optional): If you see an error saying that xml is not enabled then only run the below command.
+
+sudo apt install php-xml
+ 
+
+sudo apt-get install php-mbstring
+Once you login with root credentials, it will look like this:
+
+
+
+Task 8: Install WordPress
+Go back to Terminal and SSH into the instance. (Use the cd command to go to the parent directory if you are in var/www/html)
+
+Download and unzip the WordPress installation package. To download the latest WordPress installation package with wget, use the following command to always download the latest release:
+
+wget https://wordpress.org/latest.tar.gz
+Unzip and unarchive the installation package. The installation folder is unzipped to a folder called wordpress.
+
+tar -xzf latest.tar.gz
+Lets create a database user and a database for the WordPress installation.
+
+WordPress needs to store information such as blog posts and user comments in a database. The following procedure helps us to create the blog's database and a user that is authorized to read and save information to it.
+
+Start the database server to make sure MySQL is running.
+
+sudo systemctl start mariadb
+Log into the database server as the root user. Enter the database root password when prompted.
+
+mysql -u root -p
+ 
+
+
+
+We will create a user and password for the MySQL database. WordPress uses these values to communicate with the MySQL database. Enter the following to create a unique username and password.
+
+CREATE USER 'whizlabs-wordpress-user'@'localhost' IDENTIFIED BY 'some_strong_password';
+Note: Make sure to note the username and password as it will be used in the future.
+
+Next, we'll create a database. Make sure you give the database a descriptive, meaningful name (such as wordpress-db).
+
+CREATE DATABASE `my-wordpress-db`;
+Note: The punctuation marks surrounding the database name in the command below are called backticks. The backtick (`) key is usually located above the Tab key on a standard keyboard.
+
+Make sure to note the database name.
+
+You can see the created database in phpmyadmin
+
+http://YourIPAddress/phpMyAdmin/index.php
+
+
+
+We have to grant full privileges for the database to the WordPress user we created earlier.
+
+GRANT ALL PRIVILEGES ON `my-wordpress-db`.* TO "whizlabs-wordpress-user"@"localhost";
+We have to flush the database privileges to pick up all of your changes.
+
+FLUSH PRIVILEGES;
+Lastly we'll exit the mysql client.
+
+exit
+Task 9: Create and edit the WordPress Config file
+The WordPress installation folder contains a sample configuration file called wp-config-sample.php. Lets copy this file and edit it to fit our specific configuration.
+
+Copy the contents of the wp-config-sample.php file to a new file named wp-config.php. This creates a new configuration file and keeps the original sample file intact as a backup.
+
+cp wordpress/wp-config-sample.php wordpress/wp-config.php
+We can edit the wp-config.php file with a text editor named nano . To open the new config file in nano:
+
+nano wordpress/wp-config.php
+Find the line that defines DB_NAME and change database_name_here to the database name we created. This will create a database user and database for the WordPress installation:
+
+define('DB_NAME', 'my-wordpress-db');
+Next, let's find the line that defines DB_USER and change username_here to the database user we created. This will create a database user and database for your WordPress installation.
+
+define('DB_USER', 'whizlabs-wordpress-user');
+Find the line that defines DB_PASSWORD and change password_here to the strong password that we created. This will create a database user and database for your WordPress installation.
+
+define('DB_PASSWORD', 'some_strong_password');
+ 
+
+
+
+Let’s Navigate to the section called Authentication Unique Keys and Salts. These KEY and SALT values provide a layer of encryption to the browser cookies that WordPress users store on their local machines. Basically, adding long, random values here makes your site more secure.
+
+Go to https://api.wordpress.org/secret-key/1.1/salt/ to randomly generate a set of key values that you can copy and paste into your wp-config.php file.
+
+Windows Users: To paste text into a PuTTY terminal, place the cursor where you want to paste the text and right-click your mouse inside the PuTTY terminal.
+
+The values below are samples; use the values which you got while editing. 
+
+define('AUTH_KEY',         ':F_D>?2Or4U}r+Q|UMZB$8;*TGn}[bf!tqv.;]X fMv&L]a3Jq[+xGHjrlt)CH|?');
+
+define('SECURE_AUTH_KEY',  's~{qL!EI|pF_0~{%Ydg^)NRfvf8hj$W|XRt5-%jT*.bfcG6t4|8+&}aNT2Fe EdH');
+
+define('LOGGED_IN_KEY',    'Qn,NHPZWg=;[>=85>g_M4V-+/vi-`z0`+eu|:2n^`v[fj6o$p$p0;NA(Y-D#fzl%');
+
+define('NONCE_KEY',        'R`dl?S_o!PK:uT:tK<eRLN5Pc(EE%>(E0L({0T@qlDvyr)|k@z:bsvEVk7BTle[6');
+
+define('AUTH_SALT',        '$,sGxt,OZV:Gil}e8$=Gh~6pP*o ,>.C; M|TwI@#]uadg1gA&.$d>bd!2mdC}w/');
+
+define('SECURE_AUTH_SALT', '&Af(e4*~ 7D-D*j3=ne>IGmD4]1}/Li>TrdD[wSG9L7wQ# uPi,r*RDPXTMB/}xB');
+
+define('LOGGED_IN_SALT',   '73V21RXiM#O@yo U@wVwYZTy-A5_c|+bC)w(KPn1[b 2`$<0 9e2ivu:gnH3YM&~');
+
+define('NONCE_SALT',       'SdiBLts,ma[xf-b-moL*Lh7S>|W,W8|CMU?w)mH)+3QO|7@eeAMfDt_R2[C)=8MT');
+
+Save the file and exit your text editor. Press ctrl+o and enter to save. Press ctrl+x to exit.
+
+
+
+Now that we have unzipped the installation folder, created a MySQL database and user, and customized the WordPress configuration file, we are ready to copy the installation files to the root of the web server so we can run the installation script that completes the installation. 
+
+Lets create a folder by name mywordpresswebsite under which we will copy all the wordpress related files:
+
+mkdir /var/www/html/mywordpresswebssite
+Copy the files to mywordpresswebssite:
+
+cp -r wordpress/* /var/www/html/mywordpresswebssite/
+Task 10: To provide permission for WordPress to use permalinks
+Permissions on the Apache .htaccess files are needed for wordpress to use permalink however, this is not enabled by default on Amazon Linux. We need to allow all overrides in the Apache document root. To do so, we need to edit the httpd.conf file 
+
+sudo nano /etc/httpd/conf/httpd.conf
+Find the section that starts with <Directory "/var/www/html">.
+
+Change the AllowOverride None line in the above section to read AllowOverride All.
+
+AllowOverride All
+
+
+
+Note: There are multiple AllowOverride lines in this file; be sure you change the line in the <Directory "/var/www/html"> section.
+
+Save the file and exit your text editor. Press ctrl+o and enter to save. Press ctrl+x to exit.
+
+Next we will provide file permissions for the Apache web server. Apply the following group memberships and permissions (as described in Setting up permissions and LAMP server).
+
+We have to grant file ownership of /var/www and its contents to the apache user:
+
+sudo chown -R apache /var/www
+Next, grant group ownership of /var/www and its contents to the Apache group:
+
+sudo chgrp -R apache /var/www
+We have to change the directory permissions of /var/www and its subdirectories to add group write permissions and to set the group ID on future subdirectories.
+
+sudo chmod 2775 /var/www
+
+
+find /var/www -type d -exec sudo chmod 2775 {} \;
+Note: Wait until the command is executed and the command prompt returns.
+
+Recursively change the file permissions of /var/www and its subdirectories to add group write permissions.
+
+find /var/www -type f -exec sudo chmod 0664 {} \;
+Note: Wait until the command is executed and the command prompt returns.
+
+Restart the Apache web server to pick up the new group and permissions.
+
+sudo systemctl restart httpd
+Task 11: Run the WordPress installation script
+Now we are finally ready to install WordPress.
+
+We will use the systemctl command to ensure that the httpd and database services start at every system boot, if not already done.
+
+sudo systemctl enable httpd && sudo systemctl enable mariadb
+We have to verify that the database server is running.
+
+sudo systemctl status mariadb
+If the database service is not running, start it.
+
+sudo systemctl start mariadb
+Also verify that your Apache web server (httpd) is running.
+
+sudo systemctl status httpd
+If the httpd service is not running, start it.
+
+sudo systemctl start httpd
+In a web browser, type the below URL to see the php admin page:
+
+http://YourIPAddress/mywordpresswebssite
+
+You should see the WordPress installation script Page. Provide the information required by the WordPress installation. Choose  to complete the installation.
+
+
+
+Once the wordpress is installed, click on the Log In button on the next page.
+
+
+
+Enter Username as John Doe and the login password as the same password you set on the previous page. Click on Log In
+
+
+
+You will see the admin page of Wordpress. Click on Visit Site to see the website.
+
+
+
+Here you will see the website we created!
+
+
+
+You can go back to the admin page and use the Customize button to customize the website details as you like.
+
+This completes the lab for creating your own Wordpress website.
+
+Do You Know ?
+By enabling Auto Scaling and Rolling Updates, you ensure that your WordPress website on AWS stays highly available, responsive, and cost-effective. This approach is particularly useful for websites with variable or unpredictable traffic patterns. It helps you maintain a seamless user experience while optimizing resource utilization.
+Task 12: Validation Test
+Once the lab steps are completed, please click on the Validation button on the right side panel.
+
+This will validate the resources in the AWS account and displays whether you have completed this lab successfully or not.
+
+Sample output : 
+
+
+
+Completion and Conclusion
+You have successfully created and launched an Amazon EC2 Instance.
+
+You have successfully installed Wordpress.
+
+You have successfully logged into the Wordpress site.
+
+You have successfully visited a sample website created by Wordpress.
+
+End Lab
+Sign out of AWS Account.
+
+You have successfully completed the lab.
+
+Once you have completed the steps, click on End Lab from your whizlabs dashboard.
+
+0h 59m 14s left
+Loading...
+
+
+End Lab
+
+Open Console
+
+
+Validation
+User Name
+Whiz_User_130037.65254175
+Password
+5442c12d-5b98-4112-890e-829761e8d50d
+Access Key
+AKIAQVM5RXI2225ZMONQ
+Secret Key
+8WUCEohL698rRmklh2Tur/UT2RHva1iqNoJ8gbHY
+No Lab Resources Found
+
+FAQs and Troubleshooting
+SSH into EC2 Instance
+Need help?
+
+How to use Hands on Lab
+
+Troubleshooting Lab
+
+FAQs
+Footer Logo
+© 2023, Trainocate. All rights reserved.
